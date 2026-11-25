@@ -1,9 +1,19 @@
-import { createDecipheriv, randomBytes, sign, verify } from 'node:crypto'
+import { createDecipheriv, createPrivateKey, createPublicKey, randomBytes, sign, verify } from 'node:crypto'
 
 export const price = 2000
 
 function pem(value) {
-  return value?.replaceAll('\\n', '\n')
+  return value?.trim().replace(/^(["'])([\s\S]*)\1$/, '$2').replace(/\\r\\n|\\n|\r\n/g, '\n').trim()
+}
+
+function parseKey(parse, value, code) {
+  try {
+    const key = parse(value)
+    if (key.asymmetricKeyType !== 'rsa') throw new Error('Not an RSA key')
+    return key
+  } catch {
+    throw Object.assign(new Error('Invalid WeChat payment PEM'), { code })
+  }
 }
 
 export function wechat(env) {
@@ -23,7 +33,7 @@ export function wechat(env) {
       headers.get('wechatpay-serial') === WECHAT_PUBLIC_KEY_ID &&
       Math.abs(Date.now() / 1000 - Number(timestamp)) < 300 &&
       verify('RSA-SHA256', Buffer.from(timestamp + '\n' + nonce + '\n' + body + '\n'),
-        publicKey, Buffer.from(signature, 'base64'))
+        parseKey(createPublicKey, publicKey, 'INVALID_WECHAT_PUBLIC_KEY'), Buffer.from(signature, 'base64'))
   }
 
   async function call(method, path, payload) {
@@ -31,7 +41,9 @@ export function wechat(env) {
     const timestamp = Math.floor(Date.now() / 1000)
     const nonce = randomBytes(16).toString('hex')
     const message = [method, path, timestamp, nonce, body, ''].join('\n')
-    const signature = sign('RSA-SHA256', Buffer.from(message), privateKey).toString('base64')
+    const paymentKey = parseKey(createPrivateKey, privateKey, 'INVALID_WECHAT_PRIVATE_KEY')
+    parseKey(createPublicKey, publicKey, 'INVALID_WECHAT_PUBLIC_KEY')
+    const signature = sign('RSA-SHA256', Buffer.from(message), paymentKey).toString('base64')
     const authorization = 'WECHATPAY2-SHA256-RSA2048 mchid="' + WECHAT_MCH_ID +
       '",nonce_str="' + nonce + '",timestamp="' + timestamp + '",serial_no="' +
       WECHAT_MERCHANT_SERIAL + '",signature="' + signature + '"'
