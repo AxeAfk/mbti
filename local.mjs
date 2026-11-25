@@ -7,17 +7,10 @@ const assets = {
   '/checkout.mjs': ['checkout.mjs', 'text/javascript'],
   '/questions.mjs': ['questions.mjs', 'text/javascript'],
   '/style.css': ['style.css', 'text/css'],
-  '/research/': ['research/index.html', 'text/html'],
-  '/research/study.mjs': ['research/study.mjs', 'text/javascript'],
-  '/research/bank.mjs': ['research/bank.mjs', 'text/javascript'],
 }
 
 const server = createServer(async (incoming, outgoing) => {
   const pathname = new URL(incoming.url, 'http://127.0.0.1').pathname
-  if (pathname === '/research') {
-    outgoing.writeHead(308, { Location: '/research/' }).end()
-    return
-  }
   if (!Object.hasOwn(assets, pathname)) { outgoing.writeHead(404).end(); return }
   const [name, type] = assets[pathname]
   try {
