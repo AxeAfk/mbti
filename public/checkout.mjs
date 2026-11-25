@@ -3,6 +3,7 @@ async function request(action, payload) {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15000),
   })
   const result = await response.json().catch(() => null)
   if (!response.ok || !result) throw new Error(result?.error || '支付服务暂时不可用。')
@@ -12,14 +13,15 @@ async function request(action, payload) {
 export function showCheckout(record, { panel, message, saveRecord, latest, startOver, showReport }) {
   panel('<p class="meta">测评已完成</p><h1>解锁完整报告</h1><p>四字母类型、四维得分和中文解读。</p>' +
     '<h2>¥20 · 微信扫码</h2><p class="muted">请用另一台设备的微信扫一扫。付款后本页会自动查询，也可手动查询。</p>' +
-    '<div class="actions"><button id="pay" disabled>生成付款二维码</button>' +
+    '<div id="code" aria-busy="true"></div><div class="actions"><button id="pay" hidden>重新获取二维码</button>' +
     '<button class="secondary" id="check" disabled>查询付款状态</button>' +
-    '<button class="secondary" id="restart">重新测试</button></div><div id="code"></div>' +
+    '<button class="secondary" id="restart">重新测试</button></div>' +
     '<p class="muted">换设备或清除浏览器数据前，请先查看报告。可从当前浏览器的历史测评找回。</p>')
 
   let active = true
   let busy = false
-  let ticks = 0
+  let polling = false
+  let pollStarted = 0
   let timer
   const pay = document.querySelector('#pay')
   const check = document.querySelector('#check')
@@ -66,11 +68,35 @@ export function showCheckout(record, { panel, message, saveRecord, latest, start
     }
   }
 
+  function schedule(immediate = false) {
+    clearTimeout(timer)
+    if (!active || !polling || document.hidden || !record.started) return
+    const elapsed = Date.now() - pollStarted
+    const delay = immediate ? 0 : elapsed < 60000 ? 2000 : elapsed < 300000 ? 5000 : 10000
+    timer = setTimeout(async () => {
+      if (document.hidden) return
+      await run(async () => {
+        const isExpired = record.qr && record.expires <= Date.now()
+        if (isExpired) paintQr()
+        if ((await refresh('status')).state !== 'paid' && active && isExpired) {
+          polling = false
+          pay.hidden = false
+          message('二维码已过期。若已付款，请查询付款状态。')
+        }
+      }, true)
+      schedule()
+    }, delay)
+  }
+
   async function prepare() {
     if (!active) return
     Object.assign(record, latest())
     if (record.report) { showReport(record.report); return }
-    if (record.qr && record.expires > Date.now()) { paintQr(); return }
+    if (record.qr && record.expires > Date.now()) {
+      paintQr()
+      message('请扫码付款，到账后会自动打开报告。')
+      return
+    }
     if (record.started) {
       const previous = await refresh('close')
       if (!active || previous.state === 'paid') return
@@ -88,17 +114,39 @@ export function showCheckout(record, { panel, message, saveRecord, latest, start
     Object.assign(record, { qr: result.qr, expires: result.expires })
     saveRecord(record)
     if (active) {
-      ticks = 0
       paintQr()
-      message('等待付款确认。')
+      message('请扫码付款，到账后会自动打开报告。')
     }
   }
 
-  pay.onclick = () => run(() => navigator.locks
-    ? navigator.locks.request('checkout-' + record.token, prepare)
-    : prepare())
+  async function getQr() {
+    pay.hidden = true
+    check.disabled = true
+    code.setAttribute('aria-busy', 'true')
+    message('正在获取微信付款二维码…')
+    try {
+      if (navigator.locks) await navigator.locks.request('checkout-' + record.token, prepare)
+      else await prepare()
+    } catch (error) {
+      if (active) pay.hidden = false
+      throw error
+    } finally {
+      if (active) {
+        code.setAttribute('aria-busy', 'false')
+        check.disabled = !record.started
+        polling = Boolean(record.started)
+        pollStarted = Date.now()
+        schedule(true)
+      }
+    }
+  }
+
+  function onVisibility() { schedule(true) }
+  document.addEventListener('visibilitychange', onVisibility)
+  window.addEventListener('focus', onVisibility)
+  pay.onclick = () => run(getQr)
   check.onclick = () => run(async () => {
-    if (!record.started) { message('请先生成付款二维码。'); return }
+    if (!record.started) return
     if ((await refresh('status')).state !== 'paid' && active) {
       message('暂未查到付款成功，请稍后再试。')
     }
@@ -107,15 +155,17 @@ export function showCheckout(record, { panel, message, saveRecord, latest, start
   run(async () => {
     const { enabled } = await request('availability')
     if (!active) return
-    if (!enabled) { message('微信支付尚未配置。测评已保存在历史记录。'); return }
-    pay.disabled = check.disabled = false
-    paintQr()
-    timer = setInterval(() => {
-      if (document.hidden || !record.started || ticks++ >= 24) return
-      if (record.qr && record.expires <= Date.now()) paintQr()
-      run(() => refresh('status'), true)
-    }, 10000)
-    if (record.started) await refresh('status')
+    if (!enabled) {
+      code.setAttribute('aria-busy', 'false')
+      message('微信支付尚未配置。测评已保存在历史记录。')
+      return
+    }
+    await getQr()
   })
-  return () => { active = false; clearInterval(timer) }
+  return () => {
+    active = false
+    clearTimeout(timer)
+    document.removeEventListener('visibilitychange', onVisibility)
+    window.removeEventListener('focus', onVisibility)
+  }
 }
