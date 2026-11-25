@@ -3,7 +3,16 @@ import { createDecipheriv, createPrivateKey, createPublicKey, randomBytes, sign,
 export const price = 2000
 
 function pem(value) {
-  return value?.trim().replace(/^(["'])([\s\S]*)\1$/, '$2').replace(/\\r\\n|\\n|\r\n/g, '\n').trim()
+  const input = value?.trim().replace(/^(["'])([\s\S]*)\1$/, '$2').trim()
+  if (!input) return input
+  const normalized = input.startsWith('base64:')
+    ? Buffer.from(input.slice(7), 'base64').toString('utf8')
+    : input.replace(/\\r\\n|\\n|\r\n/g, '\n')
+  const block = normalized.trim().match(/^-----BEGIN ([A-Z ]+)-----([\sA-Za-z0-9+/=]+)-----END \1-----$/)
+  if (!block) return normalized
+  const [, label, body] = block
+  const lines = body.replace(/\s/g, '').match(/.{1,64}/g) || []
+  return ['-----BEGIN ' + label + '-----', ...lines, '-----END ' + label + '-----'].join('\n')
 }
 
 function parseKey(parse, value, code) {
