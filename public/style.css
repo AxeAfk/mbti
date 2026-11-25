@@ -1,0 +1,35 @@
+* { box-sizing: border-box; }
+:root { color: #142d27; background: #eef4f0; font: 16px/1.65 system-ui, "Microsoft YaHei", sans-serif; }
+body { margin: 0; }
+header { max-width: 960px; margin: auto; display: flex; align-items: center; justify-content: space-between; padding: 22px 24px; color: #47675d; }
+.brand { font-size: 20px; font-weight: 800; color: #142d27; text-decoration: none; }
+main { max-width: 760px; margin: 22px auto 56px; padding: 0 16px; }
+.panel { background: #fff; padding: clamp(22px, 6vw, 56px); border-radius: 28px; box-shadow: 0 18px 55px #173a2310; }
+h1 { font-size: clamp(29px, 6vw, 52px); line-height: 1.22; margin: 0 0 18px; letter-spacing: -.025em; overflow-wrap: anywhere; }
+h2 { font-size: 23px; line-height: 1.4; margin: 24px 0 8px; }
+p { margin: 0 0 16px; }
+.muted { color: #49615a; }
+.meta { color: #316957; font-size: 15px; font-weight: 700; margin-bottom: 12px; }
+.actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 24px; }
+button { appearance: none; border: 0; border-radius: 12px; padding: 11px 18px; min-height: 46px; font: inherit; font-weight: 700; cursor: pointer; color: white; background: #176349; }
+button:hover { background: #124d39; }
+button.secondary { background: #eaf2ed; color: #23483d; }
+button[disabled] { cursor: default; opacity: .55; }
+button:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid #3176a0; outline-offset: 3px; }
+fieldset { padding: 0; margin: 0; border: 0; }
+legend { font-weight: 750; font-size: clamp(22px, 4vw, 32px); line-height: 1.4; margin: 14px 0; }
+label.option { display: flex; gap: 12px; align-items: center; margin-bottom: 8px; padding: 10px 14px; border: 1px solid #d7e7de; border-radius: 12px; cursor: pointer; }
+label.option:has(input:checked) { background: #e3f1e9; border-color: #39856a; }
+input[type=radio] { accent-color: #176349; width: 18px; height: 18px; }
+progress, meter { width: 100%; height: 13px; accent-color: #176349; }
+progress { display: block; }
+.axis { padding: 18px 0; border-bottom: 1px solid #deebe3; }
+.axis-head { display: flex; gap: 12px; justify-content: space-between; font-weight: 700; }
+.axis p { margin: 6px 0 0; }
+.axis h2 { margin: 0 0 6px; }
+.type { font-size: clamp(52px, 12vw, 92px); letter-spacing: .08em; color: #176349; }
+.restore { display: block; width: 100%; padding: 10px; border: 1px solid #cddfd5; border-radius: 10px; color: #23483d; background: #f6faf7; font: inherit; }
+.qr { display: block; width: min(220px, 100%); height: auto; margin: 12px 0; }
+.message { margin-top: 16px; color: #743117; }
+.message:empty { display: none; }
+@media (max-width: 480px) { header { padding: 15px 16px; } main { margin-top: 6px; } .panel { border-radius: 18px; } }
