@@ -65,7 +65,14 @@ export function createApi({ payment, qr, secret, now = Date.now }) {
       }
       const closed = transaction && ['CLOSED', 'REVOKED', 'PAYERROR'].includes(transaction.trade_state)
       return json({ state: 'unpaid', renewable: Boolean(closed || (!transaction && expires <= now())) })
-    } catch {
+    } catch (error) {
+      const safeCode = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,128}$/.test(value) ? value : undefined
+      console.warn('WeChat payment request failed', {
+        action, status: error?.status,
+        code: safeCode(error?.code || error?.cause?.code || error?.name),
+        requestId: safeCode(error?.requestId),
+        signatureRejected: error?.message === '微信响应验签失败',
+      })
       return json({ error: '支付服务暂时不可用，请稍后查询付款状态' }, 503)
     }
   }

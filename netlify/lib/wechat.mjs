@@ -43,11 +43,14 @@ export function wechat(env) {
       body: payload ? body : undefined, signal: AbortSignal.timeout(8000),
     })
     const raw = await response.text()
+    const requestId = response.headers.get('request-id')
     if (response.status === 204) return null
     if (response.ok && !authentic(response.headers, raw)) throw new Error('微信响应验签失败')
     if (!response.ok) {
       const error = new Error('微信支付请求失败')
       error.status = response.status
+      try { error.code = JSON.parse(raw).code } catch { /* Upstream may return a non-JSON error. */ }
+      error.requestId = requestId
       throw error
     }
     return JSON.parse(raw)
