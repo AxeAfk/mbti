@@ -6,6 +6,9 @@
     "test": "node --test",
     "dev": "node local.mjs"
   },
+  "dependencies": {
+    "qrcode": "^1.5.4"
+  },
   "engines": {
     "node": ">=20"
   }

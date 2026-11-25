@@ -1,6 +1,5 @@
-import { questions, version } from './questions.mjs'
-
-import { score, validAnswers } from './report.mjs'
+import { questions, version, validAnswers } from './questions.mjs'
+import { showCheckout } from './checkout.mjs'
 
 const main = document.querySelector('#main')
 const draftKey = 'four-axis-draft'
@@ -8,6 +7,7 @@ const recordsKey = 'four-axis-reports'
 const labels = ['非常同意', '比较同意', '不确定', '比较不同意', '非常不同意']
 const tokenPattern = /^[a-f0-9]{64}$/
 let draft = load(draftKey, null)
+let stopCheckout
 
 function load(key, fallback) {
   try { return JSON.parse(localStorage.getItem(key)) ?? fallback } catch { return fallback }
@@ -32,6 +32,8 @@ function saveRecord(record) {
 }
 
 function panel(html) {
+  stopCheckout?.()
+  stopCheckout = undefined
   main.innerHTML = '<section class="panel">' + html + '<p class="message" id="message" role="status"></p></section>'
 }
 
@@ -47,7 +49,7 @@ function click(id, action) {
 function home() {
   panel('<p class="meta">48 道中文情境题</p><h1>16 型人格测评</h1>' +
     '<p>从互动方式、信息偏好、决策偏好和行动节奏，了解你的四字母人格倾向。</p>' +
-    '<p class="muted">完成后立即免费查看完整报告。当前问卷处于试测阶段，结果供自我探索。</p>' +
+    '<p class="muted">完整报告 ¥20，完成后可用微信扫码解锁。当前问卷处于试测阶段，结果供自我探索。</p>' +
     '<div class="actions"><button id="start">' + (draft?.version === version ? '继续答题' : '开始测评') + '</button></div>' +
     '<div id="history"></div>')
   click('start', () => {
@@ -62,7 +64,7 @@ function home() {
       const row = document.createElement('p')
       const link = document.createElement('a')
       link.href = '/#' + record.token
-      link.textContent = new Date(record.date).toLocaleString('zh-CN') + ' · 查看报告'
+      link.textContent = new Date(record.date).toLocaleString('zh-CN') + (record.report ? ' · 查看报告' : ' · 待解锁')
       row.append(link)
       history.append(row)
     }
@@ -100,7 +102,7 @@ function showQuestion() {
     const { token } = draft
     try {
       if (!validAnswers(answers)) throw new Error('请完成所有题目后再提交。')
-      if (!saveRecord({ token, answers, version, report: score(answers), date: new Date().toISOString() })) {
+      if (!saveRecord({ token, answers, version, date: new Date().toISOString() })) {
         throw new Error('浏览器无法保存这份测评。请检查存储空间或浏览器设置。')
       }
       draft = null
@@ -166,10 +168,10 @@ function route() {
     panel('<h1>这份测评暂无法生成报告</h1><p>这份记录的答案不完整，或来自其他题库版本。</p><a href="/">返回首页</a>')
     return
   }
-  const report = score(record.answers)
-  const saved = saveRecord({ ...record, report })
-  showReport(report)
-  if (!saved) message('浏览器无法写入历史记录，本次报告仍可查看。')
+  stopCheckout = showCheckout(record, {
+    panel, message, saveRecord, startOver, showReport,
+    latest: () => load(recordsKey, []).find(item => item.token === token),
+  })
 }
 
 window.addEventListener('hashchange', route)

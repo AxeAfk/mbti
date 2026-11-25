@@ -4,8 +4,8 @@ import { readFile } from 'node:fs/promises'
 const assets = {
   '/': ['index.html', 'text/html'],
   '/app.mjs': ['app.mjs', 'text/javascript'],
+  '/checkout.mjs': ['checkout.mjs', 'text/javascript'],
   '/questions.mjs': ['questions.mjs', 'text/javascript'],
-  '/report.mjs': ['report.mjs', 'text/javascript'],
   '/style.css': ['style.css', 'text/css'],
 }
 

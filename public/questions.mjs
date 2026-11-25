@@ -69,3 +69,8 @@ const statements = [
 export const questions = statements[0].flatMap((_, row) =>
   statements.map((items, axis) => ({ text: items[row], axis, towardSecond: row % 2 === 1 }))
 )
+
+export function validAnswers(answers) {
+  return Array.isArray(answers) && answers.length === questions.length &&
+    answers.every(answer => Number.isInteger(answer) && answer >= 0 && answer <= 4)
+}
